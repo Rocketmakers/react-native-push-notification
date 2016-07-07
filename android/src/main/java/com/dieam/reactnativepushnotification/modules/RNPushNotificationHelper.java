@@ -171,8 +171,14 @@ public class RNPushNotificationHelper {
         intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         intent.putExtra("notification", bundle);
 
-        Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        notification.setSound(defaultSoundUri);
+        boolean defaultSound = false;
+        String sound = bundle.getString("sound");
+        Uri soundUri = tryGetResourceSoundUrl(mContext, sound);
+        if (soundUri == null){
+            defaultSound = true;
+            soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        }
+        notification.setSound(soundUri);
 
         if ( android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ) {
             notification.setCategory(NotificationCompat.CATEGORY_CALL);
@@ -202,7 +208,9 @@ public class RNPushNotificationHelper {
 
         Notification info = notification.build();
         info.defaults |= Notification.DEFAULT_VIBRATE;
-        info.defaults |= Notification.DEFAULT_SOUND;
+        if (defaultSound){
+          info.defaults |= Notification.DEFAULT_SOUND;
+        }
         info.defaults |= Notification.DEFAULT_LIGHTS;
 
         notificationManager.notify(notificationID, info);
@@ -217,5 +225,25 @@ public class RNPushNotificationHelper {
         Bundle b = new Bundle();
         b.putString("id", "0");
         getAlarmManager().cancel(getScheduleNotificationIntent(b));
+    }
+
+    private static Uri tryGetResourceSoundUrl(Context context, String sound){
+        Log.d("ReactSystemNotification", "Package Name:" + context.getPackageName());
+        Log.d("ReactSystemNotification", "Sound:" + sound);
+        if (sound != null){
+            try {
+                int soundId = context.getResources().getIdentifier(sound, "raw", context.getPackageName());
+                Log.d("ReactSystemNotification", "SoundId:" + soundId);
+                return resIdToUri(context, soundId);
+            } catch (Exception ex){
+                Log.e("ReactSystemNotification", "Failed to read sound", ex);
+                return null;
+            }
+        }
+        return null;
+    }
+
+    public static Uri resIdToUri(Context context, int resId) {
+        return Uri.parse("android.resource://" + context.getPackageName() + "/" + resId);
     }
 }
